@@ -1,7 +1,7 @@
 {
   "name": "cloudconvert-cli",
-  "version": "1.0.0",
-  "description": "Command Line Interface for the CloudConvert API",
+  "version": "2.0.0",
+  "description": "Command Line Interface for the CloudConvert API v2",
   "homepage": "https://github.com/cloudconvert/cloudconvert-cli",
   "author": "Josias Montag <josias@montag.info>",
   "repository": {
@@ -13,14 +13,16 @@
   },
   "preferGlobal": true,
   "bin": {
-    "cloudconvert": "lib/bin.js"
+    "cloudconvert": "lib/cli.js"
+  },
+  "engines": {
+    "node": ">=8.0.0"
   },
   "dependencies": {
-    "async": "^1.0.0",
-    "cloudconvert": ">=1.0.2",
-    "commander": "^2.8.1",
-    "glob": "^5.0.10",
-    "pkginfo": "^0.3.0",
-    "progress": "^1.1.8"
+    "cloudconvert": "github:cloudconvert/cloudconvert-node#v2",
+    "glob": "^7.1.4",
+    "log-symbols": "^3.0.0",
+    "ora": "^3.4.0",
+    "yargs": "^14.0.0"
   }
 }

@@ -1,90 +1,98 @@
-Command Line Interface for CloudConvert 
-=======================
-This CLI for [CloudConvert](https://cloudconvert.com) allows easy and fast conversions of files using the terminal. 
+# Command Line Interface for CloudConvert 
 
-Currently this CLI only supports the basic API features of CloudConvert. Feel free to fork and submit pull requests to improve this!
+This CLI for the [CloudConvert API v2](https://cloudconvert.com/api/v2) allows easy and fast conversions of files using the terminal. 
 
-Installation
--------------------
-As this CLI is based on the [cloudconvert-node](https://github.com/cloudconvert/cloudconvert-node) module, [node.js](https://nodejs.org/) has to be installed, of course.
 
-    npm install -g cloudconvert-cli
+## Installation
+
+As this CLI is based on the [cloudconvert-node](https://github.com/cloudconvert/cloudconvert-node) module, [node.js](https://nodejs.org/) is required.
+
+    npm install -g cloudconvert/cloudconvert-cli#v2
     
     
-And set your CloudConvert [API Key](https://cloudconvert.com/user/profile) as enviroment variable:
+And set your CloudConvert [API v2 Key](https://cloudconvert.com/dashboard/api/v2/keys) as enviroment variable:
 
     export CLOUDCONVERT_API_KEY=your_key
     
-Usage
--------------------
+## Usage
+
 
 
 To convert input.pdf to jpg:
 
 ```
-$ cloudconvert -f jpg input.pdf
-test.pdf  ->  jpg  [=====================================] 100%  Conversion finished!
-1 of 1 conversions completed successfully.
+$ cloudconvert convert -f jpg input.pdf
+✔ Done!
 ```
 
-Batch converting is supported:
+Batch processing is supported:
 
 ```
-$ cloudconvert -f jpg file1.pdf file2.pdf file3.pdf
+$ cloudconvert convert -f jpg file1.pdf file2.pdf file3.pdf
 ```
 ```
-$ cloudconvert -f jpg *.pdf
-```
-```
-$ cloudconvert -f jpg folder/*.*
+$ cloudconvert convert -f jpg folder/*.*
 ```
 
-You can set conversion specific options using the ``-c`` argument. For example, if you would like to get the first page of a PDF resized to the width of 250:
+You can set conversion specific parameters using the ``-p`` argument. For example, if you would like to get the first page of a PDF resized to the width of 250:
 
 ```
-$ cloudconvert -f jpg -c page_range=1-1 -c resize=250x input.pdf
+$ cloudconvert convert -f jpg -p.pages=1-1 -p.width=250 input.pdf
 ```
 
-The best way to find out the possible options and values is using the [API Console](https://cloudconvert.com/apiconsole).
+The best way to find out the possible parameters and values is using the [Job Builder](https://cloudconvert.com/api/v2/jobs/builder).
 
-To quickly find out which output formats are supported for a specific file:
-
-```
-$ cloudconvert input.pdf
-The file(s) can be converted to the following output formats using the -f argument:
-test.pdf      -> dxf, doc, docx, html, odt, pdf, rtf, txt, azw3, epub, lrf, mobi, oeb, pdb, bmp, gif, ico, jpg, odd, png, psd, tiff, webp, emf, eps, ps, svg, wmf
+#### Optimize
 
 ```
+$ cloudconvert optimize input.pdf
+✔ Done!
+ℹ Task `process`: File size reduced by 12%
+```
 
+#### Merge
+
+```
+$ cloudconvert merge file1.pdf file2.pdf
+```
+
+#### Capture Website
+
+```
+$ cloudconvert capture-website -f pdf https://www.google.com
+```
     
-All Options
--------------------
+## All Options
+
 ```
 $ cloudconvert --help
 
-  Usage: cloudconvert [options] [files...]
+cloudconvert <command>
 
-  Options:
+Commands:
+  cloudconvert convert <files..>      Convert files to an output format
+  cloudconvert optimize <files..>     Optimize and compress files
+  cloudconvert merge <files..>        Merge files to a single PDF
+  cloudconvert capture-website <url>  Capture a website as PDF, PNG or JPG
 
-    -h, --help                              output usage information
-    -f, --format <format>                   set the output format the file(s) should be converted to
-    -c, --converteroption <option>=<value>  set a converter option. example: -c page_range=1-2
-    -p, --preset <id>                       use a preset of conversion options. Presets can be managed here: https://cloudconvert.com/preset
-    -o, --outputdir <directory>             set the directory for storing the output files. defaults to the working directory
-    --apikey <value>                        set the API key. alternatively you can use the CLOUDCONVERT_API_KEY enviroment variable
-    --concurrent <n>                        limit to n concurrent conversions. defaults to 5
-    -V, --version                           output the version number
+Options:
+  --version        Show version number                                 [boolean]
+  --apikey         Set the API key. You can get your API key here:
+                   https://cloudconvert.com/dashboard/api/v2/keys
+         [string] [required] [default: CLOUDCONVERT_API_KEY enviroment variable]
+  --sandbox        Use the CloudConvert Sandbox API   [boolean] [default: false]
+  --outputdir      Set the directory for storing the output files. defaults to
+                   the working directory                                [string]
+  --parameter, -p  Send custom parameters with the task payload. Use the dot
+                   notation, for example: -p.engine=office
+  --help           Show help                                           [boolean]
 
-  Examples:
-
-    $ cloudconvert -f jpg ../test/*.pdf
-    $ cloudconvert -f jpg -c page_range=1-1 test.pdf
 
 ```
-    
-Resources
----------
 
-* [API Documentation](https://cloudconvert.com/apidoc)
-* [Conversion Types](https://cloudconvert.com/formats)
+    
+## Resources
+
+
+* [API Documentation](https://cloudconvert.com/api/v2)
 * [CloudConvert Blog](https://cloudconvert.com/blog)
