@@ -7,7 +7,7 @@ This CLI for the [CloudConvert API v2](https://cloudconvert.com/api/v2) allows e
 
 As this CLI is based on the [cloudconvert-node](https://github.com/cloudconvert/cloudconvert-node) module, [node.js](https://nodejs.org/) is required.
 
-    npm install -g cloudconvert/cloudconvert-cli#v2
+    npm install -g cloudconvert-cli
     
     
 And set your CloudConvert [API v2 Key](https://cloudconvert.com/dashboard/api/v2/keys) as enviroment variable:
