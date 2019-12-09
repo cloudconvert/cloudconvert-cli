@@ -19,10 +19,10 @@
     "node": ">=8.0.0"
   },
   "dependencies": {
-    "cloudconvert": "github:cloudconvert/cloudconvert-node#v2",
-    "glob": "^7.1.4",
+    "cloudconvert": "^2.0.0",
+    "glob": "^7.1.6",
     "log-symbols": "^3.0.0",
     "ora": "^3.4.0",
-    "yargs": "^14.0.0"
+    "yargs": "^14.2.2"
   }
 }
