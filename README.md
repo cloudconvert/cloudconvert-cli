@@ -61,6 +61,12 @@ $ cloudconvert merge file1.pdf file2.pdf
 ```
 $ cloudconvert capture-website -f pdf https://www.google.com
 ```
+
+#### Create Thumbnail
+
+```
+$ cloudconvert thumbnail -f png file1.pdf 
+```
     
 ## All Options
 
@@ -74,6 +80,7 @@ Commands:
   cloudconvert optimize <files..>     Optimize and compress files
   cloudconvert merge <files..>        Merge files to a single PDF
   cloudconvert capture-website <url>  Capture a website as PDF, PNG or JPG
+  cloudconvert thumbnail <files..>    Create thumbnails
 
 Options:
   --version        Show version number                                 [boolean]

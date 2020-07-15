@@ -1,6 +1,6 @@
 {
   "name": "cloudconvert-cli",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Command Line Interface for the CloudConvert API v2",
   "homepage": "https://github.com/cloudconvert/cloudconvert-cli",
   "author": "Josias Montag <josias@montag.info>",
