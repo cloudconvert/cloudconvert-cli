@@ -1,6 +1,6 @@
 {
   "name": "cloudconvert-cli",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Command Line Interface for the CloudConvert API v2",
   "homepage": "https://github.com/cloudconvert/cloudconvert-cli",
   "author": "Josias Montag <josias@montag.info>",
@@ -19,7 +19,7 @@
     "node": ">=8.0.0"
   },
   "dependencies": {
-    "cloudconvert": "^2.0.0",
+    "cloudconvert": "^2.3.5",
     "glob": "^7.1.6",
     "log-symbols": "^3.0.0",
     "ora": "^3.4.0",
