@@ -34,6 +34,7 @@ describe('CLI compatibility', () => {
     expect(help).toContain('cloudconvert pdf/extract-pages <files..>');
     expect(help).toContain('cloudconvert pdf/rotate-pages <files..>');
     expect(help).toContain('cloudconvert command <files..>');
+    expect(help).toContain('cloudconvert ai/agent [files..]');
     expect(help).toContain('cloudconvert credits');
     expect(help).toContain('cloudconvert parameters <operation>');
     expect(help).toContain('--api-key');
@@ -76,6 +77,7 @@ describe('CLI compatibility', () => {
     const captureWebsiteHelp = await createCli(['capture-website', '--help'], dependencies).getHelp();
     const commandHelp = await createCli(['command', '--help'], dependencies).getHelp();
     const pdfOcrHelp = await createCli(['pdf/ocr', '--help'], dependencies).getHelp();
+    const agentHelp = await createCli(['ai/agent', '--help'], dependencies).getHelp();
 
     expect(convertHelp).toContain('Find possible task parameters with: cloudconvert parameters convert');
     expect(captureWebsiteHelp).toContain(
@@ -83,6 +85,7 @@ describe('CLI compatibility', () => {
     );
     expect(commandHelp).toContain('Find possible task parameters with: cloudconvert parameters command');
     expect(pdfOcrHelp).toContain('Find possible task parameters with: cloudconvert parameters pdf/ocr');
+    expect(agentHelp).toContain('Find possible task parameters with: cloudconvert parameters ai/agent');
   });
 
   it('parses convert with -f and dotted -p parameters', async () => {
@@ -271,6 +274,78 @@ describe('CLI compatibility', () => {
       arguments: '-i /input/upload-0/input.mp4 /output/output.mp4',
       capture_output: false
     });
+  });
+
+  it('parses ai/agent prompt and model', async () => {
+    const { files, cleanup } = await createTempFiles(['input.pdf']);
+    cleanups.push(cleanup);
+    const calls = await parseJobCommand([
+      'ai/agent',
+      '--prompt=Convert to PDF/A-2b.',
+      '--engine=anthropic/claude-haiku-5.5',
+      files[0]
+    ]);
+
+    expect(calls[0].argv.files).toEqual([files[0]]);
+    expect(calls[0].taskData).toEqual({
+      operation: 'ai/agent',
+      prompt: 'Convert to PDF/A-2b.',
+      engine: 'anthropic/claude-haiku-5.5'
+    });
+  });
+
+  it('keeps ai-agent, agent and ai as aliases for ai/agent', async () => {
+    const { files, cleanup } = await createTempFiles(['input.pdf']);
+    cleanups.push(cleanup);
+
+    for (const alias of ['ai-agent', 'agent', 'ai']) {
+      const calls = await parseJobCommand([alias, '--prompt=How many pages?', files[0]]);
+
+      expect(calls[0].taskData).toEqual({ operation: 'ai/agent', prompt: 'How many pages?' });
+    }
+  });
+
+  it('allows ai/agent without files when the prompt names them', async () => {
+    const calls = await parseJobCommand(['ai', '--prompt=Convert https://example.com/report.docx to PDF.']);
+
+    expect(calls[0].argv.files).toEqual([]);
+    expect(calls[0].taskData).toEqual({
+      operation: 'ai/agent',
+      prompt: 'Convert https://example.com/report.docx to PDF.'
+    });
+  });
+
+  it('rejects ai/agent file paths which match no files', async () => {
+    await expect(parseJobCommand(['ai', '--prompt=Convert to PDF.', 'missing.docx'])).rejects.toThrow(
+      'No files found: missing.docx'
+    );
+  });
+
+  it('requires a prompt for ai/agent', async () => {
+    const { files, cleanup } = await createTempFiles(['input.pdf']);
+    cleanups.push(cleanup);
+
+    await expect(parseJobCommand(['ai/agent', files[0]])).rejects.toThrow('Missing required argument: prompt');
+  });
+
+  it('passes --api-url to the client without sending it as task parameter', async () => {
+    const { files, cleanup } = await createTempFiles(['input.pdf']);
+    cleanups.push(cleanup);
+    const createClient = vi.fn(() => createFakeCloudConvertClient());
+    const calls: TaskData[] = [];
+
+    await createCli(['--api-key', 'key', '--api-url', 'https://api.cloudconvert.localhost', 'optimize', files[0]], {
+      exitProcess: false,
+      logger: createSilentLogger(),
+      createClient,
+      runJob: async (_argv, taskData) => {
+        calls.push(taskData);
+        return createFakeJob();
+      }
+    }).parseAsync();
+
+    expect(createClient).toHaveBeenCalledWith('key', false, 'https://api.cloudconvert.localhost');
+    expect(calls[0]).toEqual({ operation: 'optimize' });
   });
 
   it('uses credits as the API account command', async () => {

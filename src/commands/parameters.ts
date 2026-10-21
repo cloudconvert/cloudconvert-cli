@@ -21,7 +21,8 @@ export function createParametersCommand(): CommandModule<object, object> {
     builder: yargs =>
       yargs
         .positional('operation', {
-          description: 'Operation to inspect, for example: convert, optimize, thumbnail, watermark or capture-website',
+          description:
+            'Operation to inspect, for example: convert, optimize, thumbnail, watermark, capture-website or ai/agent',
           type: 'string'
         })
         .option('input-format', {

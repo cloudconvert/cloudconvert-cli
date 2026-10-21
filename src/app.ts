@@ -3,6 +3,7 @@ import ora from 'ora';
 import yargs from 'yargs/yargs';
 import type { Argv } from 'yargs';
 
+import { createAgentCommand } from './commands/agent.js';
 import { createCaptureWebsiteCommand } from './commands/capture-website.js';
 import { createCommandCommand } from './commands/command.js';
 import { createConvertCommand } from './commands/convert.js';
@@ -20,7 +21,7 @@ import { runJob } from './job.js';
 import type { CliArguments, CloudConvertClient, Logger, TaskData } from './types.js';
 
 export interface CliDependencies {
-  createClient: (apiKey: string, useSandbox: boolean) => CloudConvertClient;
+  createClient: (apiKey: string, useSandbox: boolean, apiUrl?: string) => CloudConvertClient;
   runJob: JobRunner;
   logger: Logger;
   exitProcess: boolean;
@@ -50,6 +51,7 @@ export function createCli(args: string[], partialDependencies: Partial<CliDepend
     .command(createThumbnailCommand(dependencies.runJob))
     .command(createWatermarkCommand(dependencies.runJob))
     .command(createCommandCommand(dependencies.runJob))
+    .command(createAgentCommand(dependencies.runJob))
     .demandCommand()
     .option('api-key', {
       alias: 'apikey',
@@ -64,6 +66,13 @@ export function createCli(args: string[], partialDependencies: Partial<CliDepend
       describe: 'Use the CloudConvert Sandbox API',
       type: 'boolean',
       default: false,
+      global: true
+    })
+    .option('api-url', {
+      describe: 'Use another API endpoint, such as a local development server. Overrides --sandbox',
+      type: 'string',
+      default: process.env.CLOUDCONVERT_API_URL,
+      defaultDescription: 'CLOUDCONVERT_API_URL environment variable',
       global: true
     })
     .option('output-dir', {
@@ -88,13 +97,23 @@ export function createCli(args: string[], partialDependencies: Partial<CliDepend
       normalizeAliases(argv as unknown as CliArguments);
 
       Object.defineProperty(argv, 'cloudconvert', {
-        value: dependencies.createClient(String(argv.apikey), Boolean(argv.sandbox)),
+        value: dependencies.createClient(
+          String(argv.apikey),
+          Boolean(argv.sandbox),
+          typeof argv.apiUrl === 'string' && argv.apiUrl !== '' ? argv.apiUrl : undefined
+        ),
         enumerable: false,
         configurable: true
       });
     })
     .middleware(argv => {
       const cliArguments = argv as unknown as CliArguments;
+      // Not enumerable, so that it is not sent as task parameter
+      Object.defineProperty(argv, 'filePatterns', {
+        value: cliArguments.files ?? [],
+        enumerable: false,
+        configurable: true
+      });
       cliArguments.files = expandFilePatterns(cliArguments.files);
     })
     .fail((message, err, yargsInstance) => {

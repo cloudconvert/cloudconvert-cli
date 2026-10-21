@@ -114,6 +114,24 @@ $ cloudconvert command --engine=ffmpeg --command=ffmpeg --arguments="-i /input/u
 ```
 
 Command output is captured and printed by default. Use `--no-capture-output` to disable this.
+
+#### AI Agent (Beta)
+
+Describe in plain language what should be done with your files, and an AI agent creates the required tasks. The output files of these tasks are downloaded. If the agent answers a question instead, its answer is printed:
+
+```
+$ cloudconvert ai/agent --prompt="Convert all files to PDF and merge them into one PDF, in alphabetical order of the file names." *.docx
+$ cloudconvert ai/agent --prompt="Make this video smaller, at most 30 MB." input.mp4
+$ cloudconvert ai/agent --prompt="How many pages does this PDF have?" input.pdf
+```
+
+Files are optional if the prompt names the files to import:
+
+```
+$ cloudconvert ai/agent --prompt="Convert https://example.com/report.docx to PDF."
+```
+
+Use `--engine` to choose the AI model. You can list the available models using `cloudconvert parameters ai/agent --alternatives`. The `ai/agent` task itself does not consume credits; the tasks created by the agent consume credits as usual. See CloudConvert's [AI documentation](https://cloudconvert.com/docs/operations/ai) for details.
     
 ## All Options
 
@@ -142,6 +160,8 @@ Commands:
     <files..>
   cloudconvert command <files..>      Execute custom ffmpeg, imagemagick, or
                                       graphicsmagick commands
+  cloudconvert ai/agent [files..]     Let an AI agent process files as
+                                      described in a prompt (beta)
   cloudconvert credits                Print the remaining conversion credits of
                                       your account
   cloudconvert parameters <operation> List available task parameters for an
