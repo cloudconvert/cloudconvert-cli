@@ -4,7 +4,7 @@ import { basename, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { buildJobTemplate, downloadExportFile, runJob } from '../src/job.js';
-import type { CliArguments, CloudConvertClient, Job, JobEvent, Spinner } from '../src/types.js';
+import type { CliArguments, CloudConvertClient, Job, JobEvent, Spinner, TaskEvent } from '../src/types.js';
 import { createFakeCloudConvertClient, createSilentLogger, createTempFiles } from './helpers.js';
 
 describe('job services', () => {
@@ -41,6 +41,30 @@ describe('job services', () => {
         },
         'upload-1': {
           operation: 'import/upload'
+        }
+      }
+    });
+  });
+
+  it('lets the export of ai/agent jobs ignore a missing agent output', () => {
+    expect(buildJobTemplate({ operation: 'ai/agent', prompt: 'How many pages?' }, ['input.pdf']).tasks.export).toEqual({
+      operation: 'export/url',
+      input: 'process',
+      ignore_error: true
+    });
+  });
+
+  it('builds ai/agent jobs without input files', () => {
+    expect(buildJobTemplate({ operation: 'ai/agent', prompt: 'Convert https://example.com/report.docx to PDF.' }, [])).toEqual({
+      tasks: {
+        process: {
+          operation: 'ai/agent',
+          prompt: 'Convert https://example.com/report.docx to PDF.'
+        },
+        export: {
+          operation: 'export/url',
+          input: 'process',
+          ignore_error: true
         }
       }
     });
@@ -173,6 +197,99 @@ describe('job services', () => {
     await expect(jobPromise).resolves.toBe(finishedJob);
 
     expect(logger.info).toHaveBeenCalledWith('Task `process` output:\nffmpeg output');
+  });
+
+  it('prints the agent answer and suggestions without the cancelled export', async () => {
+    const { files, cleanup } = await createTempFiles(['input.pdf']);
+    cleanups.push(cleanup);
+    const job = createUploadJob();
+    const finishedJob: Job = {
+      id: 'job-id',
+      tasks: [
+        {
+          name: 'export',
+          operation: 'export/url',
+          status: 'error',
+          message: 'The agent task has produced no output files',
+          code: 'AGENT_NO_OUTPUT'
+        },
+        {
+          name: 'process',
+          operation: 'ai/agent',
+          status: 'finished',
+          message: 'The PDF has 12 pages.',
+          result: {
+            output_tasks: [],
+            suggestions: ['Convert the first page to PNG.', 'Split the PDF into single pages.']
+          }
+        }
+      ]
+    };
+    const client = createFakeCloudConvertClient() as CloudConvertClient;
+    const logger = createSilentLogger();
+    const downloadFile = vi.fn(async () => 'downloaded' as const);
+    let finishedCallback: ((event: JobEvent) => void) | undefined;
+
+    vi.mocked(client.jobs.create).mockResolvedValue(job);
+    vi.mocked(client.jobs.subscribeEvent).mockImplementation((_id, event, callback) => {
+      if (event === 'finished') {
+        finishedCallback = callback;
+      }
+    });
+    vi.mocked(client.tasks.upload).mockResolvedValue(undefined);
+
+    const jobPromise = runJob(createArgv(client, files), { operation: 'ai/agent', prompt: 'How many pages?' }, {
+      spinner: createSpinner(),
+      logger,
+      downloadFile
+    });
+
+    await vi.waitFor(() => expect(client.tasks.upload).toHaveBeenCalledOnce());
+    finishedCallback?.({ job: finishedJob });
+    await expect(jobPromise).resolves.toBe(finishedJob);
+
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith('Task `process`: The PDF has 12 pages.');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Task `process` suggestions:\n- Convert the first page to PNG.\n- Split the PDF into single pages.'
+    );
+    expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('AGENT_NO_OUTPUT'));
+    expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('no output files'));
+  });
+
+  it('logs failed tasks created by the agent as info, as the agent may correct them', async () => {
+    const client = createFakeCloudConvertClient() as CloudConvertClient;
+    const logger = createSilentLogger();
+    let taskFailedCallback: ((event: TaskEvent) => void) | undefined;
+
+    vi.mocked(client.jobs.create).mockResolvedValue({ id: 'job-id', tasks: [] });
+    vi.mocked(client.jobs.subscribeTaskEvent).mockImplementation((_id, _event, callback) => {
+      taskFailedCallback = callback;
+    });
+
+    void runJob(createArgv(client, []), { operation: 'ai/agent', prompt: 'Convert to PDF.' }, {
+      spinner: createSpinner(),
+      logger,
+      signalEmitter: createSignalEmitter()
+    }).catch(() => undefined);
+
+    await vi.waitFor(() => expect(taskFailedCallback).toBeDefined());
+    taskFailedCallback?.({
+      task: {
+        name: 'convert-1',
+        operation: 'convert',
+        parent_task_id: 'agent-task-id',
+        message: 'Unsupported option',
+        code: 'INVALID_OPTIONS'
+      }
+    });
+    taskFailedCallback?.({
+      task: { name: 'process', operation: 'ai/agent', message: 'The agent gave up', code: 'AGENT_FAILED' }
+    });
+
+    expect(logger.info).toHaveBeenCalledWith('Task `convert-1` failed: Unsupported option (Code: INVALID_OPTIONS)');
+    expect(logger.error).toHaveBeenCalledWith('Task `process` failed: The agent gave up (Code: AGENT_FAILED)');
+    expect(logger.error).not.toHaveBeenCalledWith(expect.stringContaining('convert-1'));
   });
 
   it('uploads secondary input files from Input task parameters', async () => {

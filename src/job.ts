@@ -36,6 +36,8 @@ interface InterruptSignalEmitter {
 
 const JOB_STATUS_POLL_INTERVAL_MS = 30_000;
 const JOB_CANCELLED_MESSAGE = 'Job cancelled.';
+const AGENT_OPERATION = 'ai/agent';
+const AGENT_NO_OUTPUT_CODE = 'AGENT_NO_OUTPUT';
 
 export interface RunJobDependencies {
   spinner: Spinner;
@@ -54,12 +56,15 @@ export function buildJobTemplate(
       process: createProcessTaskData(taskData, secondaryInputFiles),
       export: {
         operation: 'export/url',
-        input: 'process'
+        input: 'process',
+        // The export of an agent which has answered a question without output files is cancelled
+        ...(taskData.operation === AGENT_OPERATION ? { ignore_error: true } : {})
       }
     }
   };
 
-  if (files) {
+  // ai/agent tasks can import the files named in the prompt instead
+  if (files && files.length > 0) {
     jobData.tasks.process.input = [];
 
     files.forEach((_, index) => {
@@ -193,6 +198,7 @@ async function waitForCompletion(
       if (failedJob) {
         printFailedTaskMessages(failedJob.tasks, logger);
         printCommandTaskOutputs(failedJob.tasks, logger);
+        printAgentSuggestions(failedJob.tasks, logger);
       }
       spinner.fail('Job failed!');
       reject(new Error('Job failed!'));
@@ -224,6 +230,7 @@ async function finishCompletedJob(
     spinner.succeed('Done!');
     printTaskMessages(finishedJob.tasks, logger);
     printCommandTaskOutputs(finishedJob.tasks, logger);
+    printAgentSuggestions(finishedJob.tasks, logger);
     return finishedJob;
   } catch (error) {
     closeCloudConvertSocket(argv.cloudconvert);
@@ -283,11 +290,17 @@ function subscribeToJobEvents(
   });
 
   void cloudconvert.jobs.subscribeTaskEvent(jobId, 'failed', event => {
-    logger.error(
-      `Task \`${event.task.name}\` failed: ${event.task.message ?? ''} (Code: ${
-        event.task.code ?? 'UNKNOWN_ERROR'
-      })`
-    );
+    const message = `Task \`${event.task.name}\` failed: ${event.task.message ?? ''} (Code: ${
+      event.task.code ?? 'UNKNOWN_ERROR'
+    })`;
+
+    // The agent tries to correct the cause of a failed task it has created
+    if (event.task.parent_task_id) {
+      logger.info(message);
+      return;
+    }
+
+    logger.error(message);
   });
 
   void cloudconvert.jobs.subscribeEvent(jobId, 'failed', event => {
@@ -401,8 +414,20 @@ async function downloadExportedFiles(
 }
 
 function printTaskMessages(tasks: JobTask[], logger: Logger): void {
-  for (const task of tasks.filter(task => task.message)) {
+  for (const task of tasks.filter(task => task.message && task.code !== AGENT_NO_OUTPUT_CODE)) {
     logger.info(`Task \`${task.name}\`: ${task.message}`);
+  }
+}
+
+function printAgentSuggestions(tasks: JobTask[], logger: Logger): void {
+  for (const task of tasks) {
+    const suggestions = task.result?.suggestions;
+
+    if (task.operation !== AGENT_OPERATION || !Array.isArray(suggestions) || suggestions.length === 0) {
+      continue;
+    }
+
+    logger.info(`Task \`${task.name}\` suggestions:\n${suggestions.map(suggestion => `- ${suggestion}`).join('\n')}`);
   }
 }
 

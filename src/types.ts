@@ -9,6 +9,7 @@ export interface CliArguments {
   overwrite: boolean;
   parameter?: ParameterValues;
   files?: string[];
+  filePatterns?: string[];
   format?: string;
   url?: string;
   cloudconvert: CloudConvertClient;
