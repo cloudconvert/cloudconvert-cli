@@ -132,6 +132,39 @@ $ cloudconvert ai/agent --prompt="Convert https://example.com/report.docx to PDF
 ```
 
 Use `--engine` to choose the AI model. You can list the available models using `cloudconvert parameters ai/agent --alternatives`. The `ai/agent` task itself does not consume credits; the tasks created by the agent consume credits as usual. See CloudConvert's [AI documentation](https://cloudconvert.com/docs/operations/ai) for details.
+
+#### Speech to Text (Beta)
+
+Transcribe the speech of audio and video files to plain text (`txt`, the default), subtitles (`srt`, `vtt`) or `json` with the segments and their timestamps:
+
+```
+$ cloudconvert ai/stt interview.mp3
+$ cloudconvert ai/stt -f srt --language=en video.mp4
+$ cloudconvert ai/stt -f vtt --translate video.mp4
+```
+
+#### Text to Speech (Beta)
+
+Speak a text, or UTF-8 text files, to `mp3` (the default), `wav`, `flac` or `ogg`:
+
+```
+$ cloudconvert ai/tts --text="Welcome to CloudConvert. Your file is ready for download." --voice=ryan
+$ cloudconvert ai/tts -f wav --instruct="Calm and slow, like a bedtime story." story.txt
+```
+
+#### Redact Personal Data (Beta)
+
+Remove personal data from PDF, TXT and MD files. The output file has the format of the input file:
+
+```
+$ cloudconvert ai/redact contract.pdf
+$ cloudconvert ai/redact --preset=strict --replacement=mask notes.txt
+$ cloudconvert ai/redact --ocr=true --ocr_language.0=eng --ocr_language.1=deu scan.pdf
+```
+
+AI models make mistakes: some personal data may be missed. Check the result where it matters.
+
+`ai/stt`, `ai/tts` and `ai/redact` run on CloudConvert's own servers and consume credits like conversions. List their parameters, such as the voices, presets and languages, with `cloudconvert parameters ai/stt`, `ai/tts` or `ai/redact`.
     
 ## All Options
 
@@ -162,6 +195,12 @@ Commands:
                                       graphicsmagick commands
   cloudconvert ai/agent [files..]     Let an AI agent process files as
                                       described in a prompt (beta)
+  cloudconvert ai/stt <files..>       Transcribe the speech of audio and
+                                      video files (beta)
+  cloudconvert ai/tts [files..]       Speak a text or text files to audio
+                                      files (beta)
+  cloudconvert ai/redact <files..>    Remove personal data from PDF, TXT
+                                      and MD files (beta)
   cloudconvert credits                Print the remaining conversion credits of
                                       your account
   cloudconvert parameters <operation> List available task parameters for an

@@ -38,6 +38,7 @@ const JOB_STATUS_POLL_INTERVAL_MS = 30_000;
 const JOB_CANCELLED_MESSAGE = 'Job cancelled.';
 const AGENT_OPERATION = 'ai/agent';
 const AGENT_NO_OUTPUT_CODE = 'AGENT_NO_OUTPUT';
+const FORMAT_OPTION_OPERATIONS = new Set(['ai/stt', 'ai/tts']);
 
 export interface RunJobDependencies {
   spinner: Spinner;
@@ -525,11 +526,14 @@ async function fetchParameterOptions(
   cloudconvert: CloudConvertClient,
   taskData: TaskData
 ): Promise<Map<string, CloudConvertOperationOption>> {
+  // The operations API lists no operations of ai/stt and ai/tts when filtering by their output_format option
+  const filterByFormat = !FORMAT_OPTION_OPERATIONS.has(taskData.operation);
+
   return collectOperationOptions(
     await fetchOperations(cloudconvert, {
       operation: taskData.operation,
-      inputFormat: typeof taskData.input_format === 'string' ? taskData.input_format : undefined,
-      outputFormat: typeof taskData.output_format === 'string' ? taskData.output_format : undefined,
+      inputFormat: filterByFormat && typeof taskData.input_format === 'string' ? taskData.input_format : undefined,
+      outputFormat: filterByFormat && typeof taskData.output_format === 'string' ? taskData.output_format : undefined,
       engine: typeof taskData.engine === 'string' ? taskData.engine : undefined,
       engineVersion: typeof taskData.engine_version === 'string' ? taskData.engine_version : undefined
     })
