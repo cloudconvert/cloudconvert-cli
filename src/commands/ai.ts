@@ -14,7 +14,7 @@ export function createSpeechToTextCommand(runJob: JobRunner): CommandModule<obje
     ...createFileJobCommand(
       {
         command: 'ai/stt <files..>',
-        describe: 'Transcribe the speech of audio and video files (beta)',
+        describe: 'Transcribe the speech of audio and video files',
         fileDescription: 'Path(s) to audio or video file(s) to transcribe',
         operation: 'ai/stt',
         format: {
@@ -38,7 +38,7 @@ export function createRedactCommand(runJob: JobRunner): CommandModule<object, ob
     ...createFileJobCommand(
       {
         command: 'ai/redact <files..>',
-        describe: 'Remove personal data from PDF, TXT and MD files (beta)',
+        describe: 'Remove personal data from PDF, TXT and MD files',
         fileDescription: 'Path(s) to PDF, TXT or MD file(s) to redact',
         operation: 'ai/redact',
         examples: [
@@ -57,7 +57,7 @@ export function createTextToSpeechCommand(runJob: JobRunner): CommandModule<obje
   return {
     command: 'ai/tts [files..]',
     aliases: ['ai-tts', 'tts'],
-    describe: 'Speak a text or text files to audio files (beta)',
+    describe: 'Speak a text or text files to audio files',
     builder: yargs => buildTextToSpeechOptions(yargs),
     handler: async rawArgv => {
       const argv = rawArgv as unknown as TextToSpeechArguments;
