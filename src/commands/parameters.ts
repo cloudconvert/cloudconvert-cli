@@ -22,7 +22,7 @@ export function createParametersCommand(): CommandModule<object, object> {
       yargs
         .positional('operation', {
           description:
-            'Operation to inspect, for example: convert, optimize, thumbnail, watermark, capture-website or ai/agent',
+            'Operation to inspect, for example: convert, optimize, thumbnail, watermark, capture-website, ai/agent or ai/stt',
           type: 'string'
         })
         .option('input-format', {

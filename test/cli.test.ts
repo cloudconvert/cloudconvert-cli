@@ -35,6 +35,9 @@ describe('CLI compatibility', () => {
     expect(help).toContain('cloudconvert pdf/rotate-pages <files..>');
     expect(help).toContain('cloudconvert command <files..>');
     expect(help).toContain('cloudconvert ai/agent [files..]');
+    expect(help).toContain('cloudconvert ai/stt <files..>');
+    expect(help).toContain('cloudconvert ai/tts [files..]');
+    expect(help).toContain('cloudconvert ai/redact <files..>');
     expect(help).toContain('cloudconvert credits');
     expect(help).toContain('cloudconvert parameters <operation>');
     expect(help).toContain('--api-key');
@@ -78,6 +81,9 @@ describe('CLI compatibility', () => {
     const commandHelp = await createCli(['command', '--help'], dependencies).getHelp();
     const pdfOcrHelp = await createCli(['pdf/ocr', '--help'], dependencies).getHelp();
     const agentHelp = await createCli(['ai/agent', '--help'], dependencies).getHelp();
+    const sttHelp = await createCli(['ai/stt', '--help'], dependencies).getHelp();
+    const ttsHelp = await createCli(['ai/tts', '--help'], dependencies).getHelp();
+    const redactHelp = await createCli(['ai/redact', '--help'], dependencies).getHelp();
 
     expect(convertHelp).toContain('Find possible task parameters with: cloudconvert parameters convert');
     expect(captureWebsiteHelp).toContain(
@@ -86,6 +92,9 @@ describe('CLI compatibility', () => {
     expect(commandHelp).toContain('Find possible task parameters with: cloudconvert parameters command');
     expect(pdfOcrHelp).toContain('Find possible task parameters with: cloudconvert parameters pdf/ocr');
     expect(agentHelp).toContain('Find possible task parameters with: cloudconvert parameters ai/agent');
+    expect(sttHelp).toContain('Find possible task parameters with: cloudconvert parameters ai/stt');
+    expect(ttsHelp).toContain('Find possible task parameters with: cloudconvert parameters ai/tts');
+    expect(redactHelp).toContain('Find possible task parameters with: cloudconvert parameters ai/redact');
   });
 
   it('parses convert with -f and dotted -p parameters', async () => {
@@ -326,6 +335,117 @@ describe('CLI compatibility', () => {
     cleanups.push(cleanup);
 
     await expect(parseJobCommand(['ai/agent', files[0]])).rejects.toThrow('Missing required argument: prompt');
+  });
+
+  it('parses ai/stt with output format and dynamic parameters', async () => {
+    const { files, cleanup } = await createTempFiles(['interview.mp3']);
+    cleanups.push(cleanup);
+    const calls = await parseJobCommand([
+      'ai/stt',
+      '-f',
+      'srt',
+      '--language=en',
+      '--translate',
+      '--max_line_length=42',
+      files[0]
+    ]);
+
+    expect(calls[0].argv.files).toEqual([files[0]]);
+    expect(calls[0].taskData).toEqual({
+      operation: 'ai/stt',
+      output_format: 'srt',
+      language: 'en',
+      translate: true,
+      max_line_length: 42
+    });
+  });
+
+  it('leaves the ai/stt output format to the API default', async () => {
+    const { files, cleanup } = await createTempFiles(['interview.mp3']);
+    cleanups.push(cleanup);
+    const calls = await parseJobCommand(['stt', files[0]]);
+
+    expect(JSON.parse(JSON.stringify(calls[0].taskData))).toEqual({ operation: 'ai/stt' });
+  });
+
+  it('requires files for ai/stt', async () => {
+    await expect(parseJobCommand(['ai/stt', 'missing.mp3'])).rejects.toThrow('You need to provide at least one file!');
+  });
+
+  it('parses ai/tts with text and without files', async () => {
+    const calls = await parseJobCommand([
+      'ai/tts',
+      '-f',
+      'mp3',
+      '--text=Welcome to CloudConvert. Your file is ready for download.',
+      '--voice=ryan'
+    ]);
+
+    expect(calls[0].argv.files).toEqual([]);
+    expect(calls[0].taskData).toEqual({
+      operation: 'ai/tts',
+      text: 'Welcome to CloudConvert. Your file is ready for download.',
+      output_format: 'mp3',
+      voice: 'ryan'
+    });
+  });
+
+  it('keeps numeric ai/tts text as string', async () => {
+    const calls = await parseJobCommand(['tts', '--text=123']);
+
+    expect(calls[0].taskData).toEqual({ operation: 'ai/tts', text: '123' });
+  });
+
+  it('parses ai/tts with text files', async () => {
+    const { files, cleanup } = await createTempFiles(['story.txt']);
+    cleanups.push(cleanup);
+    const calls = await parseJobCommand(['ai-tts', '--instruct=Calm and slow.', files[0]]);
+
+    expect(calls[0].argv.files).toEqual([files[0]]);
+    expect(calls[0].taskData).toEqual({ operation: 'ai/tts', instruct: 'Calm and slow.' });
+  });
+
+  it('requires either text or text files for ai/tts', async () => {
+    const { files, cleanup } = await createTempFiles(['story.txt']);
+    cleanups.push(cleanup);
+
+    await expect(parseJobCommand(['ai/tts'])).rejects.toThrow('You need to provide --text or at least one text file!');
+    await expect(parseJobCommand(['ai/tts', '--text=Hello', files[0]])).rejects.toThrow(
+      'Set either --text or text files, not both!'
+    );
+    await expect(parseJobCommand(['ai/tts', 'missing.txt'])).rejects.toThrow('No files found: missing.txt');
+  });
+
+  it('parses ai/redact with dynamic parameters', async () => {
+    const { files, cleanup } = await createTempFiles(['contract.pdf']);
+    cleanups.push(cleanup);
+    const calls = await parseJobCommand([
+      'ai/redact',
+      '--preset=standard',
+      '--ocr=true',
+      '--ocr_language.0=eng',
+      '--ocr_language.1=deu',
+      files[0]
+    ]);
+
+    expect(calls[0].argv.files).toEqual([files[0]]);
+    expect(calls[0].taskData).toEqual({
+      operation: 'ai/redact',
+      preset: 'standard',
+      ocr: 'true',
+      ocr_language: { 0: 'eng', 1: 'deu' }
+    });
+  });
+
+  it('keeps ai-redact, redact, pdf/redact and pdf-redact as aliases for ai/redact', async () => {
+    const { files, cleanup } = await createTempFiles(['notes.txt']);
+    cleanups.push(cleanup);
+
+    for (const alias of ['ai-redact', 'redact', 'pdf/redact', 'pdf-redact']) {
+      const calls = await parseJobCommand([alias, '--entities=person', '--entities=email', files[0]]);
+
+      expect(calls[0].taskData).toEqual({ operation: 'ai/redact', entities: ['person', 'email'] });
+    }
   });
 
   it('passes --api-url to the client without sending it as task parameter', async () => {

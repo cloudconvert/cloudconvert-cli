@@ -4,6 +4,7 @@ import yargs from 'yargs/yargs';
 import type { Argv } from 'yargs';
 
 import { createAgentCommand } from './commands/agent.js';
+import { createRedactCommand, createSpeechToTextCommand, createTextToSpeechCommand } from './commands/ai.js';
 import { createCaptureWebsiteCommand } from './commands/capture-website.js';
 import { createCommandCommand } from './commands/command.js';
 import { createConvertCommand } from './commands/convert.js';
@@ -52,6 +53,9 @@ export function createCli(args: string[], partialDependencies: Partial<CliDepend
     .command(createWatermarkCommand(dependencies.runJob))
     .command(createCommandCommand(dependencies.runJob))
     .command(createAgentCommand(dependencies.runJob))
+    .command(createSpeechToTextCommand(dependencies.runJob))
+    .command(createTextToSpeechCommand(dependencies.runJob))
+    .command(createRedactCommand(dependencies.runJob))
     .demandCommand()
     .option('api-key', {
       alias: 'apikey',

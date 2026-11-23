@@ -424,6 +424,82 @@ describe('job services', () => {
     );
   });
 
+  it.each([
+    {
+      operation: 'ai/stt',
+      options: [
+        { name: 'output_format', type: 'enum' },
+        { name: 'translate', type: 'boolean' },
+        { name: 'max_line_length', type: 'integer' }
+      ],
+      taskData: { output_format: 'srt', translate: 'true', max_line_length: '42' },
+      expected: { output_format: 'srt', translate: true, max_line_length: 42 },
+      expectedFilters: { 'filter[operation]': 'ai/stt', include: 'options' }
+    },
+    {
+      operation: 'ai/tts',
+      options: [
+        { name: 'output_format', type: 'enum' },
+        { name: 'instruct', type: 'string' }
+      ],
+      taskData: { output_format: 'wav', text: 'Hello', instruct: 123 },
+      expected: { output_format: 'wav', text: 'Hello', instruct: '123' },
+      expectedFilters: { 'filter[operation]': 'ai/tts', include: 'options' }
+    },
+    {
+      operation: 'ai/redact',
+      options: [
+        { name: 'ocr', type: 'boolean' },
+        { name: 'threshold', type: 'float' }
+      ],
+      taskData: { ocr: 'true', threshold: '0.4' },
+      expected: { ocr: true, threshold: 0.4 },
+      expectedFilters: { 'filter[operation]': 'ai/redact', include: 'options' }
+    }
+  ])('casts $operation parameters, without filtering the operations by format', async ({
+    operation,
+    options,
+    taskData,
+    expected,
+    expectedFilters
+  }) => {
+    const { files, cleanup } = await createTempFiles(['input']);
+    cleanups.push(cleanup);
+    const client = createFakeCloudConvertClient() as CloudConvertClient;
+    let finishedCallback: ((event: JobEvent) => void) | undefined;
+
+    vi.mocked(client.call).mockResolvedValue({ data: [{ operation, options }] });
+    vi.mocked(client.jobs.create).mockResolvedValue(createUploadJob());
+    vi.mocked(client.jobs.subscribeEvent).mockImplementation((_id, event, callback) => {
+      if (event === 'finished') {
+        finishedCallback = callback;
+      }
+    });
+    vi.mocked(client.tasks.upload).mockResolvedValue(undefined);
+
+    const jobPromise = runJob(createArgv(client, files), { operation, ...taskData }, {
+      spinner: createSpinner(),
+      logger: createSilentLogger(),
+      downloadFile: vi.fn(async () => 'downloaded' as const)
+    });
+
+    await vi.waitFor(() => expect(client.tasks.upload).toHaveBeenCalledOnce());
+    finishedCallback?.({ job: createFinishedJob() });
+    await jobPromise;
+
+    expect(client.call).toHaveBeenCalledWith('GET', 'operations', expectedFilters);
+    expect(client.jobs.create).toHaveBeenCalledWith(buildJobTemplate({ operation, ...expected }, files));
+  });
+
+  it('builds ai/tts jobs with text and without input files', () => {
+    expect(buildJobTemplate({ operation: 'ai/tts', text: 'Hello' }, [])).toEqual({
+      tasks: {
+        process: { operation: 'ai/tts', text: 'Hello' },
+        export: { operation: 'export/url', input: 'process' }
+      }
+    });
+  });
+
   it('rejects when the job fails and keeps the old failure text', async () => {
     const client = createFakeCloudConvertClient() as CloudConvertClient;
     const spinner = createSpinner();
